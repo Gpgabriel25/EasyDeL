@@ -2252,6 +2252,9 @@ class EasyBridgeMixin(PushToHubMixin):
         if "torch_dtype" not in kwargs:
             kwargs["torch_dtype"] = torch.float16
         torch_dtype = kwargs.pop("torch_dtype")
+        # Remove kwargs that HF from_pretrained doesn't accept
+        kwargs.pop("ignore_patterns", None)
+        kwargs.pop("trust_remote_code", None)
         hf_model = torch_loader.from_pretrained(
             pretrained_model_name_or_path,
             dtype=torch_dtype,
