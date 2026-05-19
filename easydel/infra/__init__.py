@@ -106,6 +106,11 @@ def init_cluster():
     _os.environ.setdefault("JAX_ENABLE_PREEMPTION_SERVICE", "true")
     _jax.config.update("jax_enable_preemption_service", True)
 
+    # Skip distributed init on single-worker TPU
+    if _os.environ.get("TPU_SKIP_MDS_QUERY", "") == "1":
+        _logger.info("Single-worker TPU detected (TPU_SKIP_MDS_QUERY=1); skipping distributed init.")
+        return
+
     if _jax.distributed.is_initialized():
         _logger.info("JAX distributed already initialized; using existing setup.")
         return

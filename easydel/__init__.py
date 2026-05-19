@@ -1453,7 +1453,9 @@ else:
 # Keep import side effects minimal: distributed/JAX backend initialization is opt-in.
 _os.environ.setdefault("JAX_ENABLE_PREEMPTION_SERVICE", "true")
 _distributed_init_enabled = _check_bool_flag("ENABLE_DISTRIBUTED_INIT", True)
-if _distributed_init_enabled:
+# Skip distributed init on single-worker TPU (v6e-4, v5e-4, etc.)
+_single_worker = _os.environ.get("TPU_SKIP_MDS_QUERY", "") == "1"
+if _distributed_init_enabled and not _single_worker:
     import jax as _jax
 
     _jax.config.update("jax_enable_preemption_service", True)
@@ -1469,6 +1471,8 @@ if _distributed_init_enabled:
                 _logger.debug("JAX distributed already initialized; using existing setup.")
             else:
                 raise
+elif _single_worker:
+    _logger.info("Single-worker TPU detected (TPU_SKIP_MDS_QUERY=1); skipping distributed init.")
 else:
     _distributed_msg = (
         "Skipping initialization of `DistributedConfig` (ENABLE_DISTRIBUTED_INIT=0), "
