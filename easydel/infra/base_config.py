@@ -1049,6 +1049,28 @@ class EasyDeLBaseConfig(PretrainedConfig):
         except Exception:
             available_devices = None
 
+        # Filter to 1 device per physical chip on TPU v4/v5
+        # (JAX 0.10.x requires megacore mode for create_device_mesh)
+        if backend in (None, "") and jax.default_backend() == "tpu":
+            all_devices = jax.devices()
+            if all_devices and hasattr(all_devices[0], "coords"):
+                chip_ids = set()
+                filtered = []
+                for d in sorted(all_devices, key=lambda d: (d.coords[0], d.coords[1], d.id)):
+                    chip = (d.coords[0], d.coords[1])
+                    if chip not in chip_ids:
+                        chip_ids.add(chip)
+                        filtered.append(d)
+                if len(filtered) < available_devices:
+                    logger.info(
+                        "Filtered %d TPU devices down to %d unique chips (1 device/chip)",
+                        available_devices, len(filtered),
+                    )
+                    available_devices = len(filtered)
+                    # Use filtered devices by patching jax.devices
+                    jax.devices = lambda *a, **kw: filtered
+                    jax.device_count = lambda *a, **kw: len(filtered)
+
         if available_devices == 1:
             known_product = 1
             for dim in axis_dims:
