@@ -102,7 +102,12 @@ except ImportError:  # transformers>=5 removed helpers
         return cached_path
 
 
-from transformers.utils.generic import is_timm_config_dict
+try:
+    from transformers.utils.generic import is_timm_config_dict
+except ImportError:
+    def is_timm_config_dict(config_dict):
+        """Fallback: return False if timm detection is unavailable."""
+        return False
 
 from easydel.layers import QuantizationConfig
 from easydel.utils.compiling_utils import hash_fn

@@ -111,25 +111,27 @@ else:
 
 
 def _is_array(array):
-    """Check if an object is a JAX array or tracer.
+    """Check if an object is a JAX array, sharded array, or tracer.
 
     This function is used internally to detect JAX arrays and tracers
     during output validation. Tracers are returned during JAX
-    transformations like jit and grad.
+    transformations like jit and grad. Sharded arrays cannot be safely
+    iterated and must be skipped during __post_init__ validation.
 
     Args:
         array: The object to check.
 
     Returns:
-        bool: True if the object is a JAX Tracer, False otherwise.
-
-    Note:
-        This function currently only checks for Tracer instances.
-        Regular JAX arrays (DeviceArray) return False, which may be
-        intentional for the validation logic in ModelOutput.__post_init__.
+        bool: True if the object is a JAX array (including sharded) or Tracer.
     """
     if isinstance(array, Tracer):
         return True
+    try:
+        import jax
+        if isinstance(array, jax.Array):
+            return True
+    except ImportError:
+        pass
     return False
 
 

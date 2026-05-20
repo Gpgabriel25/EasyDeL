@@ -2258,6 +2258,7 @@ class EasyBridgeMixin(PushToHubMixin):
             "offload_state_dict", "quantization_config", "subfolder", "variant",
             "cache_dir", "force_download", "local_files_only", "token",
             "revision", "proxies", "config", "use_safetensors",
+            "dtype", "trust_remote_code",
         }
         extra_keys = set(kwargs.keys()) - hf_compatible_keys
         for k in extra_keys:
