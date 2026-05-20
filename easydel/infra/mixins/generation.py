@@ -4074,19 +4074,21 @@ class EasyGenerationMixin:
         )
 
         # Prefill: call model directly to get all-position logits
-        call_kwargs = dict(state.model_kwargs)
-        running_len = state.running_token.shape[1]
-        for mask_key in ("attention_mask", "decoder_attention_mask"):
-            mask = call_kwargs.get(mask_key, None)
-            if mask is None:
-                continue
-            if hasattr(mask, "shape") and len(mask.shape) > 0 and mask.shape[-1] != running_len:
-                call_kwargs.pop(mask_key, None)
+        # Enter mesh context (required for sharded computation)
+        with self.mesh:
+            call_kwargs = dict(state.model_kwargs)
+            running_len = state.running_token.shape[1]
+            for mask_key in ("attention_mask", "decoder_attention_mask"):
+                mask = call_kwargs.get(mask_key, None)
+                if mask is None:
+                    continue
+                if hasattr(mask, "shape") and len(mask.shape) > 0 and mask.shape[-1] != running_len:
+                    call_kwargs.pop(mask_key, None)
 
-        model_outputs = model._call_generation_model_step(
-            model, state.running_token, call_kwargs,
-        )
-        prefill_logits = model_outputs.logits  # (1, total_len, vocab_size)
+            model_outputs = model._call_generation_model_step(
+                model, state.running_token, call_kwargs,
+            )
+            prefill_logits = model_outputs.logits  # (1, total_len, vocab_size)
 
         # Update cache from prefill output
         state.model_kwargs["past_key_values"] = model_outputs.past_key_values
@@ -4258,13 +4260,15 @@ class EasyGenerationMixin:
             )
 
         if not trace:
-            decode_state = self._run_loop_in_debug(
-                greedy_search_cond_fn, greedy_search_body_fn, decode_state,
-            )
+            with self.mesh:
+                decode_state = self._run_loop_in_debug(
+                    greedy_search_cond_fn, greedy_search_body_fn, decode_state,
+                )
         else:
-            decode_state = lax.while_loop(
-                greedy_search_cond_fn, greedy_search_body_fn, decode_state,
-            )
+            with self.mesh:
+                decode_state = lax.while_loop(
+                    greedy_search_cond_fn, greedy_search_body_fn, decode_state,
+                )
 
         return GreedySearchOutput(sequences=decode_state.sequences)
 
