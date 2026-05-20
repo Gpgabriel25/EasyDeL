@@ -4133,8 +4133,12 @@ class EasyGenerationMixin:
         # Ensure we have room for decode: max_seg_len + max_new_tokens <= max_length
         padded_cache_len = min(max_seg_len + 64, max_length)
 
-        for li in range(n_layers):
-            v_packed = packed_cache.views[li].value  # (1, total_len, n_kv_heads, head_dim)
+        n_views = len(packed_cache.views)
+        for li in range(n_views):
+            view = packed_cache.views[li]
+            if view is None:
+                continue
+            v_packed = view.value  # (1, total_len, n_kv_heads, head_dim)
             n_kv_heads = v_packed.shape[2]
             head_dim = v_packed.shape[3]
 
@@ -4152,10 +4156,18 @@ class EasyGenerationMixin:
                 )
                 indexs_batched = indexs_batched.at[i].set(seg_len)
 
+            # Also split the key tensor
+            k_packed = view.key
+            k_batched = jnp.zeros_like(v_batched)
+            for i, (seg_start, seg_end) in enumerate(segment_boundaries):
+                seg_len = seg_end - seg_start
+                write_len = min(seg_len, padded_cache_len)
+                k_batched = k_batched.at[i, :write_len, :, :].set(
+                    k_packed[0, seg_start : seg_start + write_len, :, :]
+                )
+
             packed_cache.views[li] = dataclasses.replace(
-                packed_cache.views[li],
-                value=v_batched,
-                indexs=indexs_batched,
+                view, key=k_batched, value=v_batched, indexs=indexs_batched,
             )
 
         # ================================================================
