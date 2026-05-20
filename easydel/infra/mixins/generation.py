@@ -4095,18 +4095,32 @@ class EasyGenerationMixin:
         packed_cache = state.model_kwargs["past_key_values"]
 
         # ================================================================
-        # Phase 3: Per-segment V-negation
+        # Phase 3: Per-segment V-negation (FUSED with fori_loop)
         # ================================================================
         if lambda_neg > 0:
+            seg_starts_jnp = jnp.array([s for s, _ in segment_boundaries], dtype=jnp.int32)
+            seg_ends_jnp = jnp.array([e for _, e in segment_boundaries], dtype=jnp.int32)
+            neg_offsets_jnp = jnp.array(neg_start_offsets, dtype=jnp.int32)
+
             for li in target_layers:
-                v = packed_cache.views[li].value  # (1, total_len, n_kv_heads, head_dim)
-                for i, (seg_start, seg_end) in enumerate(segment_boundaries):
-                    neg_start_abs = seg_start + neg_start_offsets[i]
-                    if neg_start_abs < seg_end:
-                        v = v.at[:, neg_start_abs:seg_end, :, :].multiply(-lambda_neg)
-                packed_cache.views[li] = dataclasses.replace(
-                    packed_cache.views[li], value=v,
-                )
+                view = packed_cache.views[li]
+                if view is None:
+                    continue
+                v = view.value  # (1, total_len, n_kv_heads, head_dim)
+
+                def negate_segment(i, v):
+                    seg_start = seg_starts_jnp[i]
+                    seg_end = seg_ends_jnp[i]
+                    neg_start = seg_start + neg_offsets_jnp[i]
+                    # Only negate if there are negative prompt tokens
+                    return jax.lax.cond(
+                        neg_start < seg_end,
+                        lambda: v.at[:, neg_start:seg_end, :, :].multiply(-lambda_neg),
+                        lambda: v,
+                    )
+
+                v = jax.lax.fori_loop(0, n_segments, negate_segment, v)
+                packed_cache.views[li] = dataclasses.replace(view, value=v)
 
         # ================================================================
         # Phase 4: Extract per-segment first tokens (VECTORIZED)
@@ -4122,13 +4136,14 @@ class EasyGenerationMixin:
         first_tokens = jnp.argmax(segment_logits, axis=-1)  # (n_segments,)
 
         # ================================================================
-        # Phase 5: Split packed cache → batched cache (VECTORIZED)
+        # Phase 5: Split packed cache → batched cache (FUSED with fori_loop)
         # ================================================================
         max_seg_len = max(seg_lengths)
         padded_cache_len = min(max_seg_len + 64, max_length)
 
-        # Pre-compute segment start indices and valid lengths
-        seg_starts = jnp.array([s for s, _ in segment_boundaries], dtype=jnp.int32)
+        # Pre-compute segment arrays as JAX arrays for fori_loop
+        seg_starts_jnp = jnp.array([s for s, _ in segment_boundaries], dtype=jnp.int32)
+        seg_ends_jnp = jnp.array([e for _, e in segment_boundaries], dtype=jnp.int32)
         seg_lens_arr = jnp.array(seg_lengths, dtype=jnp.int32)
 
         n_views = len(packed_cache.views)
@@ -4136,13 +4151,12 @@ class EasyGenerationMixin:
             view = packed_cache.views[li]
             if view is None:
                 continue
-            v_packed = view.value  # (1, total_len, n_kv_heads, head_dim)
-            k_packed = view.key    # (1, total_len, n_kv_heads, head_dim)
-
+            v_packed = view.value
+            k_packed = view.key
             n_kv_heads = v_packed.shape[2]
             head_dim = v_packed.shape[3]
 
-            # Create batched tensors (all zeros)
+            # Init buffers
             v_batched = jnp.zeros(
                 (n_segments, padded_cache_len, n_kv_heads, head_dim),
                 dtype=v_packed.dtype,
@@ -4150,20 +4164,34 @@ class EasyGenerationMixin:
             k_batched = jnp.zeros_like(v_batched)
             indexs_batched = seg_lens_arr.astype(jnp.int32)
 
-            # Build index arrays for batched scatter (single JAX operation)
-            # For each segment i, we want v_batched[i, :seg_len, :, :] = v_packed[0, seg_start:seg_end, :, :]
-            # Use jnp.where with segment masks to avoid Python loop
-            for i in range(n_segments):
-                seg_start = int(seg_starts[i])
-                seg_len = int(seg_lens_arr[i])
-                write_len = min(seg_len, padded_cache_len)
-                if write_len > 0:
-                    v_batched = v_batched.at[i, :write_len, :, :].set(
+            # Fused loop: copy each segment into batched buffers
+            def copy_segment(i, carry):
+                vb, kb = carry
+                seg_start = seg_starts_jnp[i]
+                seg_end = seg_ends_jnp[i]
+                seg_len = seg_ends_jnp[i] - seg_starts_jnp[i]
+                write_len = jnp.minimum(seg_len, padded_cache_len)
+
+                # Copy value using per-segment slice
+                vb = jax.lax.cond(
+                    write_len > 0,
+                    lambda: vb.at[i, :write_len, :, :].set(
                         v_packed[0, seg_start : seg_start + write_len, :, :]
-                    )
-                    k_batched = k_batched.at[i, :write_len, :, :].set(
+                    ),
+                    lambda: vb,
+                )
+                kb = jax.lax.cond(
+                    write_len > 0,
+                    lambda: kb.at[i, :write_len, :, :].set(
                         k_packed[0, seg_start : seg_start + write_len, :, :]
-                    )
+                    ),
+                    lambda: kb,
+                )
+                return (vb, kb)
+
+            v_batched, k_batched = jax.lax.fori_loop(
+                0, n_segments, copy_segment, (v_batched, k_batched),
+            )
 
             packed_cache.views[li] = dataclasses.replace(
                 view, key=k_batched, value=v_batched, indexs=indexs_batched,
