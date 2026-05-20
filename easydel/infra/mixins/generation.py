@@ -3988,6 +3988,8 @@ class EasyGenerationMixin:
         eos_token_id: int,
         logits_processor: LogitsProcessorList | None = None,
         trace: bool = True,
+        prefilled_cache=None,       # NEW: skip prefill, use this cache
+        prefilled_logits=None,       # NEW: skip prefill, use these logits
     ) -> GreedySearchOutput:
         """Ragged-batch anti-cache greedy search with packed prefill + batched decode.
 
@@ -4044,60 +4046,64 @@ class EasyGenerationMixin:
         mask_info = MaskInfo.from_segments(seg_ids)
 
         # ================================================================
-        # Phase 2: Packed prefill
+        # Phase 2: Packed prefill (SKIP if prefilled_cache provided)
         # ================================================================
         model = self.decode if self.config.is_encoder_decoder else self
 
-        # Initialize cache for packed prefill
-        model_kwargs = self.prepare_inputs_for_generation(
-            packed_input_ids,
-            max_length=max_length,
-            pad_token_id=pad_token_id,
-            starts=None,
-        )
-        # Override with segment-aware position IDs and mask
-        model_kwargs["position_ids"] = position_ids
-        model_kwargs["mask_info"] = mask_info
-
-        # State for prefill
-        cur_len = jnp.array(total_len, dtype=jnp.int32)
-        sequences = jnp.full((batch_size, max_length), pad_token_id, dtype=jnp.int32)
-        sequences = lax.dynamic_update_slice(sequences, packed_input_ids, (0, 0))
-        is_sent_finished = jnp.zeros((batch_size,), dtype=jnp.bool_)
-
-        state = GreedyState(
-            cur_len=cur_len,
-            sequences=sequences,
-            running_token=packed_input_ids,
-            is_sent_finished=is_sent_finished,
-            model_kwargs=model_kwargs,
-        )
-
-        # Prefill: call model directly to get all-position logits
-        # Enter mesh context (required for sharded computation)
-        with self.mesh:
-            call_kwargs = dict(state.model_kwargs)
-            running_len = state.running_token.shape[1]
-            for mask_key in ("attention_mask", "decoder_attention_mask"):
-                mask = call_kwargs.get(mask_key, None)
-                if mask is None:
-                    continue
-                if hasattr(mask, "shape") and len(mask.shape) > 0 and mask.shape[-1] != running_len:
-                    call_kwargs.pop(mask_key, None)
-
-            model_outputs = model._call_generation_model_step(
-                model, state.running_token, call_kwargs,
+        if prefilled_cache is not None:
+            # Use pre-filled cache from external prefill
+            packed_cache = prefilled_cache
+            prefill_logits = prefilled_logits
+            state = None  # Not needed
+        else:
+            # Initialize cache for packed prefill
+            model_kwargs = self.prepare_inputs_for_generation(
+                packed_input_ids,
+                max_length=max_length,
+                pad_token_id=pad_token_id,
+                starts=None,
             )
-            prefill_logits = model_outputs.logits  # (1, total_len, vocab_size)
+            # Override with segment-aware position IDs and mask
+            model_kwargs["position_ids"] = position_ids
+            model_kwargs["mask_info"] = mask_info
 
-        # Update cache from prefill output
-        state.model_kwargs["past_key_values"] = model_outputs.past_key_values
-        packed_cache = state.model_kwargs["past_key_values"]
+            # State for prefill
+            cur_len = jnp.array(total_len, dtype=jnp.int32)
+            sequences = jnp.full((batch_size, max_length), pad_token_id, dtype=jnp.int32)
+            sequences = lax.dynamic_update_slice(sequences, packed_input_ids, (0, 0))
+            is_sent_finished = jnp.zeros((batch_size,), dtype=jnp.bool_)
+
+            state = GreedyState(
+                cur_len=cur_len, sequences=sequences,
+                running_token=packed_input_ids, is_sent_finished=is_sent_finished,
+                model_kwargs=model_kwargs,
+            )
+
+            # Prefill: call model directly to get all-position logits
+            # Enter mesh context (required for sharded computation)
+            with self.mesh:
+                call_kwargs = dict(state.model_kwargs)
+                running_len = state.running_token.shape[1]
+                for mask_key in ("attention_mask", "decoder_attention_mask"):
+                    mask = call_kwargs.get(mask_key, None)
+                    if mask is None:
+                        continue
+                    if hasattr(mask, "shape") and len(mask.shape) > 0 and mask.shape[-1] != running_len:
+                        call_kwargs.pop(mask_key, None)
+
+                model_outputs = model._call_generation_model_step(
+                    model, state.running_token, call_kwargs,
+                )
+                prefill_logits = model_outputs.logits  # (1, total_len, vocab_size)
+
+            # Update cache from prefill output
+            state.model_kwargs["past_key_values"] = model_outputs.past_key_values
+            packed_cache = state.model_kwargs["past_key_values"]
 
         # ================================================================
-        # Phase 3: Per-segment V-negation (single weight mask per layer)
+        # Phase 3: Per-segment V-negation (SKIP if lambda=0 or prefilled_cache)
         # ================================================================
-        if lambda_neg > 0:
+        if lambda_neg > 0 and prefilled_cache is None:
             for li in target_layers:
                 view = packed_cache.views[li]
                 if view is None:
