@@ -4181,12 +4181,17 @@ class EasyGenerationMixin:
         running_token = first_tokens[:, None]  # (n_segments, 1)
 
         # Build decode mask_info from the packed prefill mask_info
-        # Re-derive for batched shape
-        batched_mask_info = mask_info.apply_kv_lengths(
-            kv_lengths=jnp.array(seg_lengths, dtype=jnp.int32),
-            q_len=1,
-            end_index=jnp.array(seg_lengths, dtype=jnp.int32),
-        )
+        # For batched decode, derive a mask from the base mask_info
+        # apply_kv_lengths expects batch-aligned kv_lengths
+        try:
+            batched_mask_info = mask_info.apply_kv_lengths(
+                kv_lengths=jnp.array([max(seg_lengths)], dtype=jnp.int32),
+                q_len=1,
+                end_index=jnp.array([max(seg_lengths)], dtype=jnp.int32),
+            )
+        except Exception:
+            # Fallback: let the model derive mask at each step
+            batched_mask_info = None
 
         decode_model_kwargs = {
             "past_key_values": packed_cache,
