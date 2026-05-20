@@ -142,7 +142,14 @@ class JaxDistributedConfig:
         Raises:
             RuntimeError: If JAX distributed initialization fails.
         """
+        import os as _os
         config = cls.get_default_config(config)
+
+        # Skip distributed init on single-worker TPU
+        if _os.environ.get("TPU_SKIP_MDS_QUERY", "") == "1":
+            logger.info("Single-worker TPU detected (TPU_SKIP_MDS_QUERY=1); skipping distributed init.")
+            return
+
         if config.initialize_jax_distributed:
             _enable_jax_preemption_service()
             if jax.distributed.is_initialized():
