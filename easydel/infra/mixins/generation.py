@@ -4180,18 +4180,9 @@ class EasyGenerationMixin:
         # Running token: the first generated token per sequence
         running_token = first_tokens[:, None]  # (n_segments, 1)
 
-        # Build decode mask_info from the packed prefill mask_info
-        # For batched decode, derive a mask from the base mask_info
-        # apply_kv_lengths expects batch-aligned kv_lengths
-        try:
-            batched_mask_info = mask_info.apply_kv_lengths(
-                kv_lengths=jnp.array([max(seg_lengths)], dtype=jnp.int32),
-                q_len=1,
-                end_index=jnp.array([max(seg_lengths)], dtype=jnp.int32),
-            )
-        except Exception:
-            # Fallback: let the model derive mask at each step
-            batched_mask_info = None
+        # Build decode mask_info — use None to let model derive from cache lengths
+        # The ejkernel attention layer reads KV lengths from cache.views[li].indexs
+        batched_mask_info = None
 
         decode_model_kwargs = {
             "past_key_values": packed_cache,
