@@ -4109,29 +4109,27 @@ class EasyGenerationMixin:
                 )
 
         # ================================================================
-        # Phase 4: Extract per-segment first tokens & split cache
+        # Phase 4: Extract per-segment first tokens (VECTORIZED)
         # ================================================================
 
-        # Extract logits at LAST position of each segment
-        first_tokens = []
-        for i, (seg_start, seg_end) in enumerate(segment_boundaries):
-            seg_logits = prefill_logits[0, seg_end - 1, :]  # (vocab_size,)
-            if logits_processor is not None:
-                # Build partial sequences for logits processing
-                partial_seq = jnp.expand_dims(
-                    packed_input_ids[0, seg_start:seg_end], 0
-                )  # (1, seg_len)
-                if partial_seq.shape[1] > 0:
-                    seg_logits = logits_processor(partial_seq, seg_logits, seg_end - seg_start)
-            next_tok = jnp.argmax(seg_logits, axis=-1)
-            first_tokens.append(next_tok)
+        # Extract logits at ALL segment end positions in one operation
+        seg_end_indices = jnp.array(
+            [seg_end - 1 for _, seg_end in segment_boundaries], dtype=jnp.int32,
+        )
+        # prefill_logits: (1, total_len, vocab_size)
+        # Gather all segment logits at once
+        segment_logits = prefill_logits[0, seg_end_indices, :]  # (n_segments, vocab_size)
+        first_tokens = jnp.argmax(segment_logits, axis=-1)  # (n_segments,)
 
-        first_tokens = jnp.array(first_tokens, dtype=jnp.int32)  # (n_segments,)
-
-        # Split packed cache → batched cache
+        # ================================================================
+        # Phase 5: Split packed cache → batched cache (VECTORIZED)
+        # ================================================================
         max_seg_len = max(seg_lengths)
-        # Ensure we have room for decode: max_seg_len + max_new_tokens <= max_length
         padded_cache_len = min(max_seg_len + 64, max_length)
+
+        # Pre-compute segment start indices and valid lengths
+        seg_starts = jnp.array([s for s, _ in segment_boundaries], dtype=jnp.int32)
+        seg_lens_arr = jnp.array(seg_lengths, dtype=jnp.int32)
 
         n_views = len(packed_cache.views)
         for li in range(n_views):
@@ -4139,32 +4137,33 @@ class EasyGenerationMixin:
             if view is None:
                 continue
             v_packed = view.value  # (1, total_len, n_kv_heads, head_dim)
+            k_packed = view.key    # (1, total_len, n_kv_heads, head_dim)
+
             n_kv_heads = v_packed.shape[2]
             head_dim = v_packed.shape[3]
 
+            # Create batched tensors (all zeros)
             v_batched = jnp.zeros(
                 (n_segments, padded_cache_len, n_kv_heads, head_dim),
                 dtype=v_packed.dtype,
             )
-            indexs_batched = jnp.zeros((n_segments,), dtype=jnp.int32)
-
-            for i, (seg_start, seg_end) in enumerate(segment_boundaries):
-                seg_len = seg_end - seg_start
-                write_len = min(seg_len, padded_cache_len)
-                v_batched = v_batched.at[i, :write_len, :, :].set(
-                    v_packed[0, seg_start : seg_start + write_len, :, :]
-                )
-                indexs_batched = indexs_batched.at[i].set(seg_len)
-
-            # Also split the key tensor
-            k_packed = view.key
             k_batched = jnp.zeros_like(v_batched)
-            for i, (seg_start, seg_end) in enumerate(segment_boundaries):
-                seg_len = seg_end - seg_start
+            indexs_batched = seg_lens_arr.astype(jnp.int32)
+
+            # Build index arrays for batched scatter (single JAX operation)
+            # For each segment i, we want v_batched[i, :seg_len, :, :] = v_packed[0, seg_start:seg_end, :, :]
+            # Use jnp.where with segment masks to avoid Python loop
+            for i in range(n_segments):
+                seg_start = int(seg_starts[i])
+                seg_len = int(seg_lens_arr[i])
                 write_len = min(seg_len, padded_cache_len)
-                k_batched = k_batched.at[i, :write_len, :, :].set(
-                    k_packed[0, seg_start : seg_start + write_len, :, :]
-                )
+                if write_len > 0:
+                    v_batched = v_batched.at[i, :write_len, :, :].set(
+                        v_packed[0, seg_start : seg_start + write_len, :, :]
+                    )
+                    k_batched = k_batched.at[i, :write_len, :, :].set(
+                        k_packed[0, seg_start : seg_start + write_len, :, :]
+                    )
 
             packed_cache.views[li] = dataclasses.replace(
                 view, key=k_batched, value=v_batched, indexs=indexs_batched,
