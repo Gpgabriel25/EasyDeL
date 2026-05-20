@@ -2252,9 +2252,16 @@ class EasyBridgeMixin(PushToHubMixin):
         if "torch_dtype" not in kwargs:
             kwargs["torch_dtype"] = torch.float16
         torch_dtype = kwargs.pop("torch_dtype")
-        # Remove kwargs that HF from_pretrained doesn't accept
-        kwargs.pop("ignore_patterns", None)
-        kwargs.pop("trust_remote_code", None)
+        # Strip all non-HF kwargs to prevent leaking EasyDeL params to HF from_pretrained
+        hf_compatible_keys = {
+            "torch_dtype", "device_map", "max_memory", "offload_folder",
+            "offload_state_dict", "quantization_config", "subfolder", "variant",
+            "cache_dir", "force_download", "local_files_only", "token",
+            "revision", "proxies", "config", "use_safetensors",
+        }
+        extra_keys = set(kwargs.keys()) - hf_compatible_keys
+        for k in extra_keys:
+            kwargs.pop(k, None)
         hf_model = torch_loader.from_pretrained(
             pretrained_model_name_or_path,
             dtype=torch_dtype,
