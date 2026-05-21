@@ -1061,10 +1061,10 @@ class EasyDeLBaseConfig(PretrainedConfig):
                     if chip not in chip_ids:
                         chip_ids.add(chip)
                         filtered.append(d)
-                if len(filtered) < available_devices:
+                if available_devices is None or len(filtered) < available_devices:
                     logger.info(
                         "Filtered %d TPU devices down to %d unique chips (1 device/chip)",
-                        available_devices, len(filtered),
+                        available_devices or len(all_devices), len(filtered),
                     )
                     available_devices = len(filtered)
                     # Use filtered devices by patching jax.devices
