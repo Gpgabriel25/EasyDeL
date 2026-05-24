@@ -523,7 +523,7 @@ class FlexibleAttentionModule(nn.Module):
             )
             return ScaledDotProductAttn(metadata=self.metadata)
 
-        with self.config.mesh:  # pyright: ignore[reportOptionalContextManager]
+        with jax.set_mesh(self.config.mesh):  # pyright: ignore[reportOptionalContextManager]
             input_dict: dict[str, tp.Any] = dict(
                 query=query_states,
                 key=key_states,

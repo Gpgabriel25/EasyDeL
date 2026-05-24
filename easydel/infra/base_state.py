@@ -646,7 +646,7 @@ class EasyDeLState(struct.PyTreeNode):
 
         # Build explicit output shardings from partition specs while correcting invalid
         # mesh-axis references and non-divisible placements per concrete leaf shape.
-        with mesh:
+        with jax.set_mesh(mesh):
             named_shardings = jax.tree_util.tree_map(
                 lambda spec, shape_obj: (
                     es.get_corrected_named_sharding(tuple(shape_obj.shape), spec)
@@ -1179,7 +1179,7 @@ class EasyDeLState(struct.PyTreeNode):
             optim_path = save_directory
             logger.info(f"Coordinated optimizer save through {optim_path}")
             try:
-                with self.model.mesh:
+                with jax.set_mesh(self.model.mesh):
                     checkpointer.save_pytree(
                         tree=self.opt_state,
                         mesh=self.model.mesh,
@@ -1664,7 +1664,7 @@ class EasyDeLState(struct.PyTreeNode):
             # Use explicit device_put with corrected NamedShardings. This ensures
             # replicated specs (PartitionSpec()) are still concretely placed across
             # the mesh, including scalar leaves such as RNG counters.
-            with mesh:
+            with jax.set_mesh(mesh):
                 named_shardings = jax.tree_util.tree_map(
                     lambda spec, shape_obj: (
                         es.get_corrected_named_sharding(tuple(shape_obj.shape), spec)

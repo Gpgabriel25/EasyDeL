@@ -415,7 +415,7 @@ class PPOTrainer(Trainer):
                 graphother,
             )
             apply = flax.nnx.merge(graphdef, graphtree, graphother)
-            with apply.mesh:
+            with jax.set_mesh(apply.mesh):
                 ids = with_sharding_constraint(ids, self.arguments.step_partition_spec)
                 mask = with_sharding_constraint(mask, self.arguments.step_partition_spec)
                 target_ids = ids[:, prompt_length:]
@@ -466,7 +466,7 @@ class PPOTrainer(Trainer):
                 graphother,
             )
             apply = flax.nnx.merge(graphdef, graphtree, graphother)
-            with apply.mesh:
+            with jax.set_mesh(apply.mesh):
                 ids = with_sharding_constraint(ids, self.arguments.step_partition_spec)
                 mask = with_sharding_constraint(mask, self.arguments.step_partition_spec)
                 target_ids = ids[:, prompt_length:]

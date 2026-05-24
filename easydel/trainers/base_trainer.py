@@ -2147,7 +2147,7 @@ class BaseTrainer(BaseTrainerProtocol):
                     sharded attention_mask).
                 """
                 module = state.model
-                with module.mesh:
+                with jax.set_mesh(module.mesh):
                     shard_input_ids = input_ids
                     shard_attention_mask = attention_mask
                     if shard_inputs:
@@ -2211,7 +2211,7 @@ class BaseTrainer(BaseTrainerProtocol):
                 sharded attention_mask).
             """
             module = state.model
-            with module.mesh:
+            with jax.set_mesh(module.mesh):
                 shard_input_ids = input_ids
                 shard_attention_mask = attention_mask
                 if shard_inputs:
@@ -3962,7 +3962,7 @@ class BaseTrainer(BaseTrainerProtocol):
         Returns:
             Array distributed across devices.
         """
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             arr = with_sharding_constraint(arr, PartitionSpec(None))
         return arr
 
@@ -4102,7 +4102,7 @@ class BaseTrainer(BaseTrainerProtocol):
         partition rules to determine how parameters should be distributed across devices.
         """
         with self.timer("configure sharded state"):
-            with self.model.mesh:
+            with jax.set_mesh(self.model.mesh):
                 if self._resumed_from_checkpoint and self.model_state.opt_state is not None:
                     current_step = self.model_state.step
                     self.model_state = self.model_state.replace(tx=self.tx)

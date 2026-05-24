@@ -2310,7 +2310,7 @@ class EasyGenerationMixin:
                     hbm_utilization=hbm_utilization,
                     dtype=dtype,
                 )
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             views_config = [None] * num_hidden_layers
 
             for idx in range(num_hidden_layers):
@@ -2455,7 +2455,7 @@ class EasyGenerationMixin:
             if isinstance(dtype, str):
                 dtype = getattr(jnp, dtype, jnp.bfloat16)
 
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             num_hidden_layers = getattr(text_config, "num_hidden_layers", None)
             if num_hidden_layers is None:
                 num_hidden_layers = (max(cache_view_mapping.keys(), default=-1) + 1) if cache_view_mapping else 0
@@ -4075,7 +4075,7 @@ class EasyGenerationMixin:
 
         # Prefill: call model directly to get all-position logits
         # Enter mesh context (required for sharded computation)
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             call_kwargs = dict(state.model_kwargs)
             running_len = state.running_token.shape[1]
             for mask_key in ("attention_mask", "decoder_attention_mask"):
@@ -4264,12 +4264,12 @@ class EasyGenerationMixin:
             )
 
         if not trace:
-            with self.mesh:
+            with jax.set_mesh(self.mesh):
                 decode_state = self._run_loop_in_debug(
                     greedy_search_cond_fn, greedy_search_body_fn, decode_state,
                 )
         else:
-            with self.mesh:
+            with jax.set_mesh(self.mesh):
                 decode_state = lax.while_loop(
                     greedy_search_cond_fn, greedy_search_body_fn, decode_state,
                 )

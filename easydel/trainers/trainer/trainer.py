@@ -366,7 +366,7 @@ class Trainer(BaseTrainer):
                 )
         try:
             run_exception = None
-            with self.mesh:
+            with jax.set_mesh(self.mesh):
                 for epoch in range(start_epoch, self.arguments.num_train_epochs):
                     epoch_start_step, epoch_end_step = self._get_epoch_step_bounds(epoch)
                     if epoch_start_step >= epoch_end_step:
@@ -432,7 +432,7 @@ class Trainer(BaseTrainer):
 
         eval_iter = iter(self.dataloader_eval)
         try:
-            with self.mesh:
+            with jax.set_mesh(self.mesh):
                 yield from self._eval_epoch(
                     state=state,
                     eval_dataset=self.dataloader_eval,

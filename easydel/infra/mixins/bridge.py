@@ -1494,6 +1494,10 @@ class EasyBridgeMixin(PushToHubMixin):
         if auto_shard_model:
             # double check to make sure weights are correct or just a simple non-op.
             model = model.shard_model(partition_rules=partition_rules)
+        # Barrier: ensure all workers finish loading before caller proceeds.
+        if jax.process_count() > 1:
+            from jax.experimental import multihost_utils
+            multihost_utils.sync_global_devices("easydel.from_pretrained.complete")
         return model
 
     @classmethod
@@ -1720,6 +1724,10 @@ class EasyBridgeMixin(PushToHubMixin):
         )
 
         logger.debug("returning model.")
+        # Barrier: ensure all workers finish loading before caller proceeds.
+        if jax.process_count() > 1:
+            from jax.experimental import multihost_utils
+            multihost_utils.sync_global_devices("easydel.from_pretrained.complete")
         return model
 
     @classmethod
