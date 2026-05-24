@@ -567,7 +567,7 @@ class EasyDeLBaseModule(nn.Module, EasyBridgeMixin, EasyGenerationMixin, Operati
     def mesh_call(self: Self, *args: tp.Any, **kwargs: tp.Any) -> tp.Any:
         """Call the module under the configured JAX mesh context.
 
-        This is a convenience method equivalent to `with self.mesh: self(*args, **kwargs)`.
+        This is a convenience method equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)`.
         It ensures that all operations within __call__ respect the mesh sharding
         configuration.
 
@@ -583,14 +583,14 @@ class EasyDeLBaseModule(nn.Module, EasyBridgeMixin, EasyGenerationMixin, Operati
             >>> model = LlamaModel(config, dtype, param_dtype, precision, rngs)
             >>> # These are equivalent:
             >>> output1 = model.mesh_call(input_ids, attention_mask=mask)
-            >>> with model.mesh:
+            >>> with jax.set_mesh(model.mesh):
             ...     output2 = model(input_ids, attention_mask=mask)
 
         Note:
             This method uses self.mesh only. For explicit_mesh or manual_mesh,
             enter those contexts explicitly when needed.
         """
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             return self(*args, **kwargs)
 
     @property

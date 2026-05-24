@@ -1646,7 +1646,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1684,7 +1684,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1723,7 +1723,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1762,7 +1762,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1801,7 +1801,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> CausalLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1841,7 +1841,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> CausalLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1881,7 +1881,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> MoeModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1920,7 +1920,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> MoeCausalLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1958,7 +1958,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> SequenceClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -1996,7 +1996,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> SequenceClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2034,7 +2034,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> TokenClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2070,7 +2070,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> QuestionAnsweringModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2106,7 +2106,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutputWithPoolingAndCrossAttentions:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2139,7 +2139,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> SequenceClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2169,7 +2169,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> TokenClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2199,7 +2199,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> QuestionAnsweringModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2229,7 +2229,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> MultipleChoiceModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2258,7 +2258,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutputWithPooling:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2286,7 +2286,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> CLIPTextModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2312,7 +2312,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutputWithPooling:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2337,7 +2337,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ImageClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2365,7 +2365,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> CLIPOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2403,7 +2403,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> Seq2SeqLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2460,7 +2460,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> VLMCausalLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2527,7 +2527,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2572,7 +2572,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2602,7 +2602,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> BaseModelOutputWithPastAndCrossAttentions:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2637,7 +2637,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> Seq2SeqModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2672,7 +2672,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> Seq2SeqLMOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2702,7 +2702,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> SequenceClassifierOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2729,7 +2729,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2760,7 +2760,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2791,7 +2791,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2822,7 +2822,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2853,7 +2853,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.
@@ -2884,7 +2884,7 @@ class BaseModuleProtocol(metaclass=ABCMeta):
     ) -> ModelOutput:
         """Run the forward pass inside `self.mesh` (auto/normal mesh).
 
-        This is equivalent to `with self.mesh: self(*args, **kwargs)` and uses the
+        This is equivalent to `with jax.set_mesh(self.mesh): self(*args, **kwargs)` and uses the
         same arguments and return type as the matching `__call__` overload. It does
         not switch to `explicit_mesh` or `manual_mesh`; enter those meshes explicitly
         if needed.

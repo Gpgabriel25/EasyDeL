@@ -2310,7 +2310,7 @@ class EasyGenerationMixin:
                     hbm_utilization=hbm_utilization,
                     dtype=dtype,
                 )
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             views_config = [None] * num_hidden_layers
 
             for idx in range(num_hidden_layers):
@@ -2455,7 +2455,7 @@ class EasyGenerationMixin:
             if isinstance(dtype, str):
                 dtype = getattr(jnp, dtype, jnp.bfloat16)
 
-        with self.mesh:
+        with jax.set_mesh(self.mesh):
             num_hidden_layers = getattr(text_config, "num_hidden_layers", None)
             if num_hidden_layers is None:
                 num_hidden_layers = (max(cache_view_mapping.keys(), default=-1) + 1) if cache_view_mapping else 0

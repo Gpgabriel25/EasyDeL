@@ -805,7 +805,7 @@ class TransformerCache(BaseCache):
         quantizer = quantizer or EasyQuantizer(quantization_config=None)
         if dtype is None:
             dtype = jnp.bfloat16
-        with mesh:
+        with jax.set_mesh(mesh):
             return cls(
                 views=[
                     TransformerCacheView.init(

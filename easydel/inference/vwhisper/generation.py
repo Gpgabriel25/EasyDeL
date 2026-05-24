@@ -112,7 +112,7 @@ def _compiled_generate(  # pyright: ignore[reportUnusedFunction]
         - The model.mesh context is used for proper device placement.
     """
     model = nn.merge(graphdef, graphstate)
-    with model.mesh:
+    with jax.set_mesh(model.mesh):
         return model._force_generate(
             input_features=input_features,
             forced_decoder_ids=decoder_input_ids,

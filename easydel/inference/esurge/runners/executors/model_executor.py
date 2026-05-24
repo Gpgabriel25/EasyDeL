@@ -468,7 +468,7 @@ class ModelStepExecutor:
             kv_pages: HybridCache | RaggedPagesCache | UnifiedAttentionCache,
             metadata: BatchMetadata,
         ) -> BackboneOutputs:
-            with self.model.mesh:
+            with jax.set_mesh(self.model.mesh):
                 model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
                 input_ids_view = metadata.input_ids_buf
                 position_ids_view = metadata.position_ids_buf
@@ -581,7 +581,7 @@ class ModelStepExecutor:
             graphother,
             gathered_hidden_states: jax.Array,
         ) -> jax.Array:
-            with self.model.mesh:
+            with jax.set_mesh(self.model.mesh):
                 # nn.merge only runs at trace/compile time (inside @ejit),
                 # not at inference runtime — XLA sees through it.
                 model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
