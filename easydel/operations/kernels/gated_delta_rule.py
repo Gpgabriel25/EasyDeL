@@ -948,7 +948,7 @@ class GatedDeltaRuleOp(OperationImpl):
         )
 
         if self.metadata.mesh is not None:
-            with jax.set_mesh(self.metadata.mesh):
+            with self.metadata.mesh:
                 outputs = with_sharding_constraint(arr=outputs, sharding=shardings_bthd.output)
 
         return GatedDeltaRuleOutput(

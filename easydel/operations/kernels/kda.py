@@ -559,7 +559,7 @@ class KernelDeltaAttnOp(OperationImpl):
         shardings = None
 
         if self.metadata.mesh is not None:
-            with jax.set_mesh(self.metadata.mesh):
+            with self.metadata.mesh:
                 mode = self.get_mode(query=query, BTHD=True)
                 shardings = self.metadata.get_shardings(mode, layout="bthd")
                 query = with_sharding_constraint(arr=query, sharding=shardings.query)
@@ -612,7 +612,7 @@ class KernelDeltaAttnOp(OperationImpl):
             outputs = outputs.transpose(0, 2, 1, 3)
 
         if self.metadata.mesh is not None and shardings is not None:
-            with jax.set_mesh(self.metadata.mesh):
+            with self.metadata.mesh:
                 outputs = with_sharding_constraint(arr=outputs, sharding=shardings.output)
 
         return KDAOutput(

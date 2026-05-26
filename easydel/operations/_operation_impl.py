@@ -349,7 +349,7 @@ class OperationImpl(BaseOperation):
         mesh = self.metadata.mesh
         if mesh is None:
             return state_ps
-        with jax.set_mesh(mesh):
+        with mesh:
             if dep is None:
                 return None
 

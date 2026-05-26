@@ -160,7 +160,7 @@ class VanillaAttn(OperationImpl):
         mesh = self.metadata.mesh
         if mesh is None:
             raise ValueError("VanillaAttn requires a mesh to be set on metadata")
-        with jax.set_mesh(mesh):
+        with mesh:
             model_mode = self.get_mode(query=query, BTHD=True)
             shardings = self.metadata.get_shardings(model_mode, layout="bthd")
 
