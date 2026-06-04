@@ -573,6 +573,9 @@ class TransformerCacheView(BaseCacheView):
 
             if starts is None:
                 starts = jnp.zeros((mt.batch_size,), dtype=jnp.int32)
+                # Place on mesh to avoid SingleDeviceSharding error with FSDP
+                if ishardings is not None and isinstance(ishardings, Ns):
+                    starts = jax.device_put(starts, ishardings)
 
             starts = apply_logical_sharding(
                 starts, axes=batch_axes, mode=MODE_PREFILL, partition_manager=partition_manager
