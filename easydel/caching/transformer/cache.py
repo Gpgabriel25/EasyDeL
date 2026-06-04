@@ -572,12 +572,24 @@ class TransformerCacheView(BaseCacheView):
             ishardings = Ns(mesh, partition_manager.resolve(axes=batch_axes, mode=MODE_PREFILL, shape=(mt.batch_size,)))
 
             if starts is None:
-                # Use device=ishardings to place on FSDP mesh (same as indexs below)
-                starts = jnp.zeros((mt.batch_size,), dtype=jnp.int32, device=ishardings)
+                starts = jnp.zeros((mt.batch_size,), dtype=jnp.int32)
 
-            starts = apply_logical_sharding(
-                starts, axes=batch_axes, mode=MODE_PREFILL, partition_manager=partition_manager
-            )
+            # apply_logical_sharding may fail with SingleDeviceSharding on FSDP mesh.
+            # Retry with explicit mesh placement if needed.
+            try:
+                starts = apply_logical_sharding(
+                    starts, axes=batch_axes, mode=MODE_PREFILL, partition_manager=partition_manager
+                )
+            except TypeError:
+                if partition_manager is not None and mesh is not None:
+                    spec = partition_manager.resolve(
+                        axes=batch_axes, mode=MODE_PREFILL, shape=(mt.batch_size,))
+                    starts = jax.device_put(starts, Ns(mesh, spec))
+                    starts = apply_logical_sharding(
+                        starts, axes=batch_axes, mode=MODE_PREFILL, partition_manager=partition_manager
+                    )
+                else:
+                    raise
 
             out = cls(
                 key=quantizer(jnp.zeros(shape=kshape, dtype=dtype, device=kshardings)),
