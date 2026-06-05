@@ -3074,6 +3074,9 @@ class EasyGenerationMixin:
         """Run one generation step without forwarding incompatible prompt embeddings."""
         call_kwargs = self._prepare_mask_info_for_generation_step(running_token, call_kwargs)
         with set_inference_mode():
+            # Expose hidden states when requested for activation steering
+            if getattr(self.generation_config, "output_hidden_states", False):
+                call_kwargs = {**call_kwargs, "output_hidden_states": True}
             if call_kwargs.get("inputs_embeds", None) is not None:
                 return model(**call_kwargs)
             return model(running_token, **call_kwargs)
