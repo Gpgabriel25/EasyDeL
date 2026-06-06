@@ -329,6 +329,7 @@ class UnifiedAttention(AttentionModule, Generic[Cfg]):
         self.use_qk_norm = use_qk_norm
         self.use_fused_qkv = use_fused_qkv
         self.use_gqa = use_gqa
+        self.use_neox_style_qkv_split = getattr(config, "use_neox_style_qkv_split", False)
         self.use_mla_lora = use_mla_lora
 
         self.hidden_size = config.hidden_size
@@ -411,6 +412,11 @@ class UnifiedAttention(AttentionModule, Generic[Cfg]):
 
         if hasattr(config, "resid_pdrop") and config.resid_pdrop > 0:
             self.resid_dropout = nn.Dropout(rate=config.resid_pdrop, rngs=rngs)
+
+        # KV modifier hook: called after RoPE, before attention.
+        # Set to a callable(key_states, value_states, **kwargs) -> (key_states, value_states)
+        # for AKVM / StreamingLLM / custom KV cache manipulation.
+        self.kv_modifier = lambda k, v, **kw: (k, v)
 
     def _create_q_proj(
         self,
@@ -1101,6 +1107,10 @@ class UnifiedAttention(AttentionModule, Generic[Cfg]):
                 query_states = rearrange(qkv_states[..., : self.num_key_value_groups, :], "b q h gs d -> b q (h gs) d")
                 key_states: Float[Array, "batch_size kvseq_len num_kv_heads head_dim"] = qkv_states[..., -2, :]
                 value_states: Float[Array, "batch_size kvseq_len num_kv_heads head_dim"] = qkv_states[..., -1, :]
+            elif self.use_neox_style_qkv_split:
+                # GPT-NeoX/Pythia: QKV interleaved per-head [Qh,Kh,Vh, Qh+1,Kh+1,Vh+1, ...]
+                qkv = qkv.reshape(batch_size, sequence_length, self.num_heads, 3 * self.head_dim)
+                query_states, key_states, value_states = jnp.split(qkv, 3, axis=-1)
             else:
                 query_states, key_states, value_states = jnp.split(qkv, indices_or_sections=3, axis=-1)
         else:
@@ -1131,6 +1141,9 @@ class UnifiedAttention(AttentionModule, Generic[Cfg]):
         query_states, key_states, value_states = self._postprocess_qkv(query_states, key_states, value_states)
         query_states, key_states, value_states = self.apply_qkv_shardings(query_states, key_states, value_states)
         query_states, key_states = self._apply_rotary(query_states, key_states, position_ids, frequencies)
+
+        # AKVM hook: modify K/V after RoPE, before attention
+        key_states, value_states = self.kv_modifier(key_states, value_states, model_config=getattr(self, "config", None))
 
         causal_for_kernel = self.causal
         if mask_info is not None and getattr(mask_info, "_causal_baked", False):
