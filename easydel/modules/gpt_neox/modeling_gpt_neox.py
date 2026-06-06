@@ -105,6 +105,7 @@ class GPTNeoXAttention(UnifiedAttention):
             rngs: Flax NNX random number generators.
             layer_idx: Index of this layer in the model (0-indexed).
         """
+        config.use_neox_style_qkv_split = True
         super().__init__(
             config,
             dtype,
