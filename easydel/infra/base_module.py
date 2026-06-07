@@ -648,7 +648,7 @@ class EasyDeLBaseModule(nn.Module, EasyBridgeMixin, EasyGenerationMixin, Operati
         """
         return nn.split(self)[-1]  # pyright: ignore[reportReturnType]
 
-    @cached_property
+    @property  # NOT cached — avoids tracer leaks inside JIT (causal mask is cheap to recompute)
     def causal_mask(self: Self) -> tp.Any:
         """Get or compute the basic causal attention mask from configuration.
 
@@ -668,7 +668,7 @@ class EasyDeLBaseModule(nn.Module, EasyBridgeMixin, EasyGenerationMixin, Operati
         """
         return self.config.get_basic_causal_mask()
 
-    @cached_property
+    @property  # NOT cached — avoids tracer leaks inside JIT (frequencies are cheap to recompute)
     def frequencies(self: Self) -> tp.Any:
         """Get or compute the frequency components for rotary embeddings.
 
@@ -686,7 +686,7 @@ class EasyDeLBaseModule(nn.Module, EasyBridgeMixin, EasyGenerationMixin, Operati
         """
         return self.config.get_basic_frequencies()
 
-    @cached_property
+    @property  # NOT cached — avoids tracer leaks inside JIT (frequencies are cheap to recompute)
     def inv_frequencies(self: Self) -> tp.Any:
         """Get or compute the inverse frequency components for rotary embeddings.
 
