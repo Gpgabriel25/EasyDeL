@@ -670,23 +670,20 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
         return self._scoring_model
 
     def _get_scoring_logits_fn(self):
-        """Return a cached jitted forward that outputs logits only."""
+        """Return a cached (non-jitted) scoring model callable.
+
+        The outer caller at ``_loglikelihood_token_ids`` already enters
+        the JAX mesh context before invoking this callable.  JIT-compiling
+        the forward pass would trace through EasyDeL's internal
+        ``jax.set_mesh`` calls, which is forbidden in JAX ≥ 0.10.
+        """
         if self._scoring_logits_fn is None:
             scoring_model = self._get_scoring_model()
 
             def _forward(input_ids, attention_mask):
-                """Compute logits from the scoring model for the given inputs.
-
-                Args:
-                    input_ids: Token ID array of shape ``[batch, seq_len]``.
-                    attention_mask: Boolean or integer mask of the same shape.
-
-                Returns:
-                    Logits tensor of shape ``[batch, seq_len, vocab_size]``.
-                """
                 return scoring_model(input_ids=input_ids, attention_mask=attention_mask).logits
 
-            self._scoring_logits_fn = jax.jit(_forward)
+            self._scoring_logits_fn = _forward
         return self._scoring_logits_fn
 
     def _generate(
