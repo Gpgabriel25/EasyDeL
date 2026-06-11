@@ -138,6 +138,10 @@ class OperationMetadata:
 
     _stored_mesh: jax.sharding.Mesh | None = NOT_GIVEN
 
+    def __hash__(self) -> int:
+        """Hash based on identity — instances are singular config objects."""
+        return id(self)
+
     def __post_init__(self) -> None:
         """
         Initializes default values and performs safety checks after dataclass creation.
