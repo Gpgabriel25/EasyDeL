@@ -1046,7 +1046,7 @@ class ExecutionManager:
         model_fn = self._model_executor.get_compiled(num_tokens=num_tokens, padded_num_reqs=padded_num_reqs)
         # Do not block here: allow the caller to pipeline dependent work
         # (e.g. enqueue sampling) before synchronizing.
-        with forward_autotune_only():
+        with jax.set_mesh(self.model.mesh), forward_autotune_only():
             outputs = model_fn(self.graphstate, self.graphother, inputs.kv_pages, inputs.batch_metadata)
         self.kv_pages = outputs.kv_pages
         return outputs
