@@ -209,6 +209,8 @@ class ParallelLinear(nn.Module):
         self.use_bias: bool = use_bias
         self.dtype: Dtype | None = dtype
         self.param_dtype: Dtype = param_dtype
+        if isinstance(precision, str) and precision == "bf16":
+            precision = "bfloat16"
         self.precision: PrecisionLike = precision
         self.kernel_init: Initializer = kernel_init
         self.bias_init: Initializer = bias_init

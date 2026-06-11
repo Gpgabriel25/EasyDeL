@@ -777,6 +777,8 @@ def auto_remat(
         if len(modules) == 1:
             return modules[0]
         return modules
+    if isinstance(policy, bool):
+        policy = EasyDeLGradientCheckPointers.NOTHING_SAVEABLE if not policy else EasyDeLGradientCheckPointers.EVERYTHING_SAVEABLE
     if isinstance(policy, (str, EasyDeLGradientCheckPointers)):
         policy = get_gradient_checkpoint_policy(policy, save_names, exclude_names)
     elif not callable(policy):

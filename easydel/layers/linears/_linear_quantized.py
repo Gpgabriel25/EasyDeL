@@ -622,6 +622,8 @@ class ParallelLinearQuantized(nn.Module):
         self.use_bias = use_bias
         self.dtype = dtype
         self.param_dtype = param_dtype
+        if isinstance(precision, str) and precision == "bf16":
+            precision = "bfloat16"
         self.precision = precision
         self.kernel_init = kernel_init
         self.bias_init = bias_init
