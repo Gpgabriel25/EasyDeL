@@ -468,76 +468,75 @@ class ModelStepExecutor:
             kv_pages: HybridCache | RaggedPagesCache | UnifiedAttentionCache,
             metadata: BatchMetadata,
         ) -> BackboneOutputs:
-            with jax.set_mesh(self.model.mesh):
-                model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
-                input_ids_view = metadata.input_ids_buf
-                position_ids_view = metadata.position_ids_buf
+            model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
+            input_ids_view = metadata.input_ids_buf
+            position_ids_view = metadata.position_ids_buf
 
-                cache_metadata = RaggedPagesMetadata(
-                    pages_tables=metadata.pages_tables,
-                    context_lens=metadata.seq_lens[:num_reqs_max_model_len],
-                    query_start_loc=metadata.query_start_loc[: num_reqs_max_model_len + 1],
-                    num_seqs=jnp.array([metadata.num_requests], dtype=jnp.int32),
-                    num_slices_per_kv_cache_update_page=self.metadata.num_slices_per_kv_cache_update_page,
-                    page_size=self.metadata.page_size,
-                    request_distribution=metadata.request_distribution,
-                    slot_mapping=metadata.slot_mapping,
-                    num_kv_update_slices=metadata.num_kv_update_slices,
-                    version=self._metadata_version,
+            cache_metadata = RaggedPagesMetadata(
+                pages_tables=metadata.pages_tables,
+                context_lens=metadata.seq_lens[:num_reqs_max_model_len],
+                query_start_loc=metadata.query_start_loc[: num_reqs_max_model_len + 1],
+                num_seqs=jnp.array([metadata.num_requests], dtype=jnp.int32),
+                num_slices_per_kv_cache_update_page=self.metadata.num_slices_per_kv_cache_update_page,
+                page_size=self.metadata.page_size,
+                request_distribution=metadata.request_distribution,
+                slot_mapping=metadata.slot_mapping,
+                num_kv_update_slices=metadata.num_kv_update_slices,
+                version=self._metadata_version,
+            )
+
+            external_inputs: dict[str, tp.Any] = {}
+            if metadata.pixel_values is not None or metadata.pixel_values_videos is not None:
+                external_inputs.update(
+                    dict(
+                        pixel_values=metadata.pixel_values,
+                        image_grid_thw=metadata.image_grid_thw,
+                        pixel_values_videos=metadata.pixel_values_videos,
+                        video_grid_thw=metadata.video_grid_thw,
+                    )
+                )
+            if metadata.deepstack_visual_embeds is not None:
+                if metadata.visual_pos_masks is None:
+                    raise ValueError("`visual_pos_masks` must be provided when `deepstack_visual_embeds` is set.")
+                external_inputs.update(
+                    dict(
+                        visual_pos_masks=jnp.expand_dims(metadata.visual_pos_masks, 0),
+                        deepstack_visual_embeds=list(metadata.deepstack_visual_embeds),
+                    )
                 )
 
-                external_inputs: dict[str, tp.Any] = {}
-                if metadata.pixel_values is not None or metadata.pixel_values_videos is not None:
-                    external_inputs.update(
-                        dict(
-                            pixel_values=metadata.pixel_values,
-                            image_grid_thw=metadata.image_grid_thw,
-                            pixel_values_videos=metadata.pixel_values_videos,
-                            video_grid_thw=metadata.video_grid_thw,
-                        )
-                    )
-                if metadata.deepstack_visual_embeds is not None:
-                    if metadata.visual_pos_masks is None:
-                        raise ValueError("`visual_pos_masks` must be provided when `deepstack_visual_embeds` is set.")
-                    external_inputs.update(
-                        dict(
-                            visual_pos_masks=jnp.expand_dims(metadata.visual_pos_masks, 0),
-                            deepstack_visual_embeds=list(metadata.deepstack_visual_embeds),
-                        )
-                    )
+            use_prefill_embeds = metadata.prefill_embeds is not None and metadata.prefill_embeds_mask is not None
+            use_mrope = metadata.mrope_position_ids is not None
 
-                use_prefill_embeds = metadata.prefill_embeds is not None and metadata.prefill_embeds_mask is not None
-                use_mrope = metadata.mrope_position_ids is not None
+            if use_mrope:
+                position_ids = jnp.expand_dims(metadata.mrope_position_ids, 1)
+            else:
+                position_ids = jnp.expand_dims(position_ids_view, 0)
 
-                if use_mrope:
-                    position_ids = jnp.expand_dims(metadata.mrope_position_ids, 1)
-                else:
-                    position_ids = jnp.expand_dims(position_ids_view, 0)
-
-                model_inputs: dict[str, tp.Any]
-                if use_prefill_embeds:
-                    base_embeds = model.compute_embedding(jnp.expand_dims(input_ids_view, 0))
-                    override = jnp.expand_dims(metadata.prefill_embeds, 0).astype(base_embeds.dtype)
-                    mask = jnp.expand_dims(metadata.prefill_embeds_mask, 0)[..., None]
-                    inputs_embeds = jnp.where(mask, override, base_embeds)
-                    model_inputs = {"input_ids": None, "inputs_embeds": inputs_embeds}
-                else:
-                    model_inputs = {"input_ids": jnp.expand_dims(input_ids_view, 0)}
-                with set_inference_mode():
-                    output = model(
-                        **model_inputs,
-                        position_ids=position_ids,
-                        past_key_values=kv_pages,
-                        cache_metadata=cache_metadata,
-                        apply_lm_head=False,
-                        **external_inputs,
-                    )
-                hs = output.last_hidden_state.squeeze(0)
-
-                return BackboneOutputs(
-                    kv_pages=output.past_key_values,
-                    hidden_states=hs,
+            model_inputs: dict[str, tp.Any]
+            if use_prefill_embeds:
+                base_embeds = model.compute_embedding(jnp.expand_dims(input_ids_view, 0))
+                override = jnp.expand_dims(metadata.prefill_embeds, 0).astype(base_embeds.dtype)
+                mask = jnp.expand_dims(metadata.prefill_embeds_mask, 0)[..., None]
+                inputs_embeds = jnp.where(mask, override, base_embeds)
+                model_inputs = {"input_ids": None, "inputs_embeds": inputs_embeds}
+            else:
+                model_inputs = {"input_ids": jnp.expand_dims(input_ids_view, 0)}
+            with set_inference_mode():
+                output = model(
+                    **model_inputs,
+                    position_ids=position_ids,
+                    past_key_values=kv_pages,
+                    cache_metadata=cache_metadata,
+                    apply_lm_head=False,
+                    **external_inputs,
                 )
+            hs = output.last_hidden_state.squeeze(0)
+
+            return BackboneOutputs(
+                kv_pages=output.past_key_values,
+                hidden_states=hs,
+            )
 
         return _backbone_step
 
