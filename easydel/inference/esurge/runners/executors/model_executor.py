@@ -350,7 +350,8 @@ class ModelStepExecutor:
         def wrapped_backbone(graphstate_, graphother_, kv_pages_, metadata_):
             return self._backbone_fn(self.graphdef, graphstate_, graphother_, kv_pages_, metadata_)
 
-        out = wrapped_backbone(graphstate, graphother, inputs.kv_pages, inputs.batch_metadata)
+        with jax.set_mesh(self.model.mesh):
+            out = wrapped_backbone(graphstate, graphother, inputs.kv_pages, inputs.batch_metadata)
         self._cache_store(self._backbone_cache, key, wrapped_backbone)
         return out
 
@@ -388,7 +389,8 @@ class ModelStepExecutor:
                 def _bound_lm_head(hs_):
                     return self._lm_head_fn(graphdef, graphstate, graphother, hs_)
 
-                compiled_bound = jax.jit(_bound_lm_head).lower(dummy_hs).compile()
+                with jax.set_mesh(self.model.mesh):
+                    compiled_bound = jax.jit(_bound_lm_head).lower(dummy_hs).compile()
 
                 def _wrapped_bound_lm_head(graphstate_, graphother_, hs_):
                     del graphstate_, graphother_
@@ -396,16 +398,18 @@ class ModelStepExecutor:
 
                 self._cache_store(self._lm_head_cache, key, _wrapped_bound_lm_head)
             else:
-                compiled = self._lm_head_fn.lower(  # pyright: ignore[reportFunctionMemberAccess]
-                    *(graphdef, graphstate, graphother, dummy_hs)
-                ).compile()
+                with jax.set_mesh(self.model.mesh):
+                    compiled = self._lm_head_fn.lower(  # pyright: ignore[reportFunctionMemberAccess]
+                        *(graphdef, graphstate, graphother, dummy_hs)
+                    ).compile()
                 self._cache_store(self._lm_head_cache, key, compiled)
             return
 
         def wrapped_lm_head(graphstate_, graphother_, hs_):
             return self._lm_head_fn(self.graphdef, graphstate_, graphother_, hs_)
 
-        _ = wrapped_lm_head(graphstate, graphother, dummy_hs)
+        with jax.set_mesh(self.model.mesh):
+            _ = wrapped_lm_head(graphstate, graphother, dummy_hs)
         self._cache_store(self._lm_head_cache, key, wrapped_lm_head)
 
     def _build_backbone_fn(
