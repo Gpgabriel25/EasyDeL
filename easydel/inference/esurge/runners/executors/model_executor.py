@@ -580,10 +580,9 @@ class ModelStepExecutor:
             graphother,
             gathered_hidden_states: jax.Array,
         ) -> jax.Array:
-            with jax.set_mesh(self.model.mesh):
-                # nn.merge only runs at trace/compile time (inside @ejit),
-                # not at inference runtime — XLA sees through it.
-                model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
-                return model.apply_lm_head(gathered_hidden_states)
+            # nn.merge only runs at trace/compile time (inside @ejit),
+            # not at inference runtime — XLA sees through it.
+            model: "EasyDeLBaseModule" = nn.merge(graphdef, graphstate, graphother)
+            return model.apply_lm_head(gathered_hidden_states)
 
         return _lm_head_step
