@@ -331,7 +331,8 @@ class ModelStepExecutor:
                 def _bound_backbone(kv_pages_, metadata_):
                     return self._backbone_fn(graphdef, graphstate, graphother, kv_pages_, metadata_)
 
-                compiled_bound = jax.jit(_bound_backbone).lower(inputs.kv_pages, inputs.batch_metadata).compile()
+                with jax.set_mesh(self.model.mesh):
+                    compiled_bound = jax.jit(_bound_backbone).lower(inputs.kv_pages, inputs.batch_metadata).compile()
 
                 def _wrapped_bound_backbone(graphstate_, graphother_, kv_pages_, metadata_):
                     del graphstate_, graphother_
@@ -339,9 +340,10 @@ class ModelStepExecutor:
 
                 self._cache_store(self._backbone_cache, key, _wrapped_bound_backbone)
             else:
-                compiled = self._backbone_fn.lower(  # pyright: ignore[reportFunctionMemberAccess]
-                    *(graphdef, graphstate, graphother, inputs.kv_pages, inputs.batch_metadata)
-                ).compile()
+                with jax.set_mesh(self.model.mesh):
+                    compiled = self._backbone_fn.lower(  # pyright: ignore[reportFunctionMemberAccess]
+                        *(graphdef, graphstate, graphother, inputs.kv_pages, inputs.batch_metadata)
+                    ).compile()
                 self._cache_store(self._backbone_cache, key, compiled)
             return None
 
