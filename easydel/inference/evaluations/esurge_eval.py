@@ -670,12 +670,12 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
         return self._scoring_model
 
     def _get_scoring_logits_fn(self):
-        """Return a cached (non-jitted) scoring model callable.
+        """Return a cached JIT-compiled scoring model callable.
 
-        The outer caller at ``_loglikelihood_token_ids`` already enters
-        the JAX mesh context before invoking this callable.  JIT-compiling
-        the forward pass would trace through EasyDeL's internal
-        ``jax.set_mesh`` calls, which is forbidden in JAX ≥ 0.10.
+        JIT compilation is safe because the JAX 0.10 mesh bridge
+        (auto-applied at ``import easydel``) ensures that
+        ``jax.set_mesh`` calls inside EasyDeL's internals do not
+        conflict with the outer JIT tracing context.
         """
         if self._scoring_logits_fn is None:
             scoring_model = self._get_scoring_model()
@@ -683,7 +683,7 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
             def _forward(input_ids, attention_mask):
                 return scoring_model(input_ids=input_ids, attention_mask=attention_mask).logits
 
-            self._scoring_logits_fn = _forward
+            self._scoring_logits_fn = jax.jit(_forward)
         return self._scoring_logits_fn
 
     def _generate(
