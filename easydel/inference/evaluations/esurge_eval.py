@@ -670,12 +670,11 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
         return self._scoring_model
 
     def _get_scoring_logits_fn(self):
-        """Return a cached JIT-compiled scoring model callable.
+        """Return a cached scoring model callable.
 
-        JIT compilation is safe because the JAX 0.10 mesh bridge
-        (auto-applied at ``import easydel``) ensures that
-        ``jax.set_mesh`` calls inside EasyDeL's internals do not
-        conflict with the outer JIT tracing context.
+        The underlying EasyDeL model is already internally JIT-compiled
+        (via ejit).  Wrapping in an additional ``jax.jit`` is unnecessary
+        and can deadlock with the eSurge background scheduler threads.
         """
         if self._scoring_logits_fn is None:
             scoring_model = self._get_scoring_model()
@@ -1528,6 +1527,10 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
                 encoded_requests.append((context_enc, continuation_enc))
             else:
                 encoded_requests.append(self._encode_pair(context, continuation))
+
+        # Sort by total length to minimize shape-variant JIT recompilations
+        # across chunks (each unique max_len triggers a new compilation).
+        encoded_requests.sort(key=lambda x: len(x[0]) + len(x[1]))
 
         results: list[tuple[float, bool]] = []
         for chunk in _chunked(encoded_requests, self._batch_size):
