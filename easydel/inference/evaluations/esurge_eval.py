@@ -1532,11 +1532,22 @@ class eSurgeLMEvalAdapter(LM):  # pyright: ignore[reportUntypedBaseClass]
         # across chunks (each unique max_len triggers a new compilation).
         encoded_requests.sort(key=lambda x: len(x[0]) + len(x[1]))
 
-        results: list[tuple[float, bool]] = []
-        for chunk in _chunked(encoded_requests, self._batch_size):
-            ctx_ids = [ctx for ctx, _ in chunk]
-            cont_ids = [cont for _, cont in chunk]
-            results.extend(self._loglikelihood_token_ids(ctx_ids, cont_ids))
+        # Pause the eSurge background scheduler to avoid thread contention
+        # with direct model calls during scoring.  The scheduler's 1200+
+        # worker threads would otherwise deadlock with the model forward pass.
+        was_running = getattr(self.surge, "_scheduler_running", False)
+        if was_running:
+            self.surge.pause()
+
+        try:
+            results: list[tuple[float, bool]] = []
+            for chunk in _chunked(encoded_requests, self._batch_size):
+                ctx_ids = [ctx for ctx, _ in chunk]
+                cont_ids = [cont for _, cont in chunk]
+                results.extend(self._loglikelihood_token_ids(ctx_ids, cont_ids))
+        finally:
+            if was_running:
+                self.surge.resume()
 
         return results
 
