@@ -54,6 +54,59 @@ from .utils import LazyModule as _LazyModule
 from .utils import check_bool_flag as _check_bool_flag
 from .utils import is_package_available as _is_package_available
 
+def _apply_jax010_mesh_bridge() -> None:
+    """Bridge JAX 0.10 ``set_mesh`` to deprecated ``pxla.thread_resources``.
+
+    JAX 0.10 deprecated ``pxla.thread_resources`` but eformer's
+    ``get_incontext_mesh()`` still reads it exclusively.  The new
+    ``jax.set_mesh()`` API does **not** populate the old
+    ``thread_resources.env.physical_mesh``, causing ``AssertionError:
+    No mesh found under this context manager`` inside JIT-compiled
+    model forward passes.
+
+    This function patches ``jax.set_mesh`` to simultaneously push
+    onto the old ``thread_resources.stack`` AND enter the new mesh
+    context, so eformer can find the mesh during JIT tracing.
+    """
+    try:
+        import jax
+        import jax.interpreters.pxla as _old_pxla  # noqa: I001
+        # Guard: if bridge already applied (e.g. duplicate import), skip.
+        if getattr(jax.set_mesh, "__is_bridged__", False):
+            return
+        _orig_set_mesh = jax.set_mesh
+
+        class _BridgedMeshContext:
+            __is_bridged__ = True
+
+            def __init__(self, mesh):
+                self._mesh = mesh
+                self._new_ctx = None
+
+            def __enter__(self):
+                new_env = _old_pxla.thread_resources.stack[-1].with_mesh(
+                    self._mesh
+                )
+                _old_pxla.thread_resources.stack.append(new_env)
+                _old_pxla.thread_resources.env = new_env
+                self._new_ctx = _orig_set_mesh(self._mesh)
+                self._new_ctx.__enter__()
+                return self
+
+            def __exit__(self, *args):
+                _old_pxla.thread_resources.stack.pop()
+                _old_pxla.thread_resources.env = (
+                    _old_pxla.thread_resources.stack[-1]
+                )
+                return self._new_ctx.__exit__(*args)
+
+        jax.set_mesh = _BridgedMeshContext  # type: ignore[assignment]
+    except Exception:
+        pass  # not fatal — user can still call the bridge manually
+
+
+_apply_jax010_mesh_bridge()
+
 _logger = _get_logger("EasyDeL")
 
 
