@@ -809,6 +809,11 @@ class GatedDeltaRuleOp(OperationImpl):
     ) -> GatedDeltaRuleOutput:
         """Forward pass for gated delta rule attention via ejkernel.
 
+        .. note::
+            Sets ``EJKERNEL_AUTOTUNE_POLICY=heuristics`` as default to avoid
+            costly per-layer chunk-size autotuning (17K+ HLO modules).
+            Override with the env var to re-enable autotuning.
+
         Args:
             query: Query tensor [batch, seq_len, num_heads, head_dim]
             key: Key tensor [batch, seq_len, num_heads, head_dim]
@@ -827,6 +832,8 @@ class GatedDeltaRuleOp(OperationImpl):
         Returns:
             GatedDeltaRuleOutput containing attention outputs and updated states
         """
+        import os as _os
+        _os.environ.setdefault("EJKERNEL_AUTOTUNE_POLICY", "heuristics")
         seq_len = query.shape[1]
         is_inference = seq_len == 1
         kernel_cfg = self.metadata.get_operation_config("gated_delta_rule")
