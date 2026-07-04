@@ -936,6 +936,7 @@ class GatedDeltaRuleOp(OperationImpl):
             value,
             beta,
             decay,
+            None,  # seg_ids (not used in forward pass)
             recurrent_state,
             use_qk_l2norm=use_qk_l2norm,
             use_chunked=use_chunked_gdr,
