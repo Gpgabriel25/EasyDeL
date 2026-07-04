@@ -834,6 +834,13 @@ class GatedDeltaRuleOp(OperationImpl):
         """
         import os as _os
         _os.environ.setdefault("EJKERNEL_AUTOTUNE_POLICY", "heuristics")
+        # Enable JAX persistent compilation cache so compiled GDR kernels
+        # survive across runs. The first compilation is slow but subsequent
+        # runs hit the disk cache and are near-instant.
+        import jax as _jax
+        _jax.config.update("jax_compilation_cache_dir", "/tmp/jax_compilation_cache")
+        _jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
+        _jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
         seq_len = query.shape[1]
         is_inference = seq_len == 1
         kernel_cfg = self.metadata.get_operation_config("gated_delta_rule")
